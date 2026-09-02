@@ -1,141 +1,198 @@
 import React, { useState } from 'react';
-import { LOCATION_HOTSPOTS } from '../data/propertyData';
-import { MapPin, Navigation } from 'lucide-react';
+import useProperty from '../hooks/useProperty';
+import { MapPin } from 'lucide-react';
 
 export default function InteractiveMap() {
+  const { property, locationHotspots } = useProperty();
+  const hotspots = locationHotspots || [];
+
   const [activeCategory, setActiveCategory] = useState('All');
-  const [selectedSpot, setSelectedSpot] = useState(LOCATION_HOTSPOTS[0]);
+  const [selectedSpot, setSelectedSpot] = useState(hotspots[0] || null);
+  const [hoveredSpot, setHoveredSpot] = useState(null);
 
-  const categories = ['All', 'Temple', 'Transit', 'Healthcare', 'Education'];
+  const categories = ['All', 'Tourism', 'Transit', 'Healthcare', 'Education'];
 
-  const filteredSpots = activeCategory === 'All'
-    ? LOCATION_HOTSPOTS
-    : LOCATION_HOTSPOTS.filter((spot) => spot.category === activeCategory);
+  const handleCategoryChange = (cat) => {
+    setActiveCategory(cat);
+    if (cat !== 'All') {
+      const firstMatching = hotspots.find((s) => s.category === cat);
+      if (firstMatching) {
+        setSelectedSpot(firstMatching);
+      }
+    }
+  };
 
   return (
-    <div className="glass-card-dark" style={{ padding: '2.5rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem', marginBottom: '2rem' }}>
-        <div>
-          <span className="eyebrow-label eyebrow-clay" style={{ background: 'rgba(201, 160, 99, 0.2)', border: '1px solid rgba(201, 160, 99, 0.4)', color: 'var(--gold-accent)' }}>
+    <section className="location-connectivity-wrapper" aria-label="Location Connectivity & Key Landmarks">
+      {/* Header Area */}
+      <div className="loc-conn-header">
+        <div className="loc-conn-header-left">
+          <span className="loc-conn-eyebrow">
             LOCATION CONNECTIVITY
           </span>
-          <h3 style={{ fontSize: '2.2rem', fontFamily: 'var(--font-serif)', color: '#FAF8F4', textShadow: '0 2px 10px rgba(0, 0, 0, 0.4)' }}>
-            Strategic VIP Corridor in Shirdi
-          </h3>
+          <h2 className="loc-conn-heading">
+            Nearby Location Connectivities
+          </h2>
         </div>
 
         {/* Category Filters */}
-        <div className="map-category-filter" style={{ marginBottom: 0 }}>
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`map-filter-chip ${activeCategory === cat ? 'active' : ''}`}
-            >
-              {cat}
-            </button>
-          ))}
+        <div className="loc-conn-filter-group" role="tablist" aria-label="Filter locations by category">
+          {categories.map((cat) => {
+            const isActive = activeCategory === cat;
+            return (
+              <button
+                key={cat}
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => handleCategoryChange(cat)}
+                className={`loc-filter-btn ${isActive ? 'active' : ''}`}
+              >
+                {cat}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="bento-grid" style={{ alignItems: 'stretch' }}>
-        {/* Interactive Map Surface */}
-        <div className="bento-col-8" style={{ position: 'relative', minHeight: '380px', background: 'rgba(15, 13, 10, 0.95)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid rgba(201, 160, 99, 0.35)' }}>
-          {/* Stylized Dark Grid Canvas Simulation */}
-          <div style={{ position: 'absolute', inset: 0, opacity: 0.25, backgroundImage: 'radial-gradient(#C9A063 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
-
-          {/* Project Hub Center Marker */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '48%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              zIndex: 10,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center'
-            }}
+      {/* Main Grid: Interactive Map + Landmark Detail Card */}
+      <div className="loc-conn-grid">
+        {/* Left Column: Realistic Dark Night Cartography Road Map Canvas */}
+        <div className="loc-map-container" role="region" aria-label="Interactive Connectivity Map">
+          {/* Ambient Lighting & Map Coordinate Layer */}
+          <svg
+            className="loc-map-svg-bg"
+            viewBox="0 0 1000 650"
+            preserveAspectRatio="none"
+            aria-hidden="true"
           >
-            <div
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                backgroundColor: 'var(--clay-accent)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#FFF',
-                boxShadow: '0 0 25px var(--clay-accent)',
-                animation: 'pulseBeat 2s infinite'
-              }}
-            >
-              <Navigation size={20} />
+            <defs>
+              <radialGradient id="centerGlow" cx="50%" cy="48%" r="35%">
+                <stop offset="0%" stopColor="rgba(201, 160, 99, 0.15)" />
+                <stop offset="100%" stopColor="transparent" />
+              </radialGradient>
+            </defs>
+            {/* Subtle radial ambient warmth around center */}
+            <rect width="100%" height="100%" fill="url(#centerGlow)" />
+          </svg>
+
+          {/* Central Hub Pin: Site Location */}
+          <div className="loc-center-pin" aria-label={`${property?.name || 'Site'} (Site Location)`}>
+            <div className="loc-center-beacon">
+              <MapPin size={22} color="#FFF" />
             </div>
-            <span style={{ backgroundColor: 'var(--ink-dark)', color: 'var(--gold-accent)', fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.6rem', borderRadius: '4px', marginTop: '6px', whiteSpace: 'nowrap', border: '1px solid var(--gold-accent)' }}>
-              Thenshirdi Sai Residency
-            </span>
-          </div>
-
-          {/* Hotspot Markers */}
-          {filteredSpots.map((spot) => (
-            <button
-              key={spot.id}
-              onClick={() => setSelectedSpot(spot)}
-              style={{
-                position: 'absolute',
-                top: `${spot.y}%`,
-                left: `${spot.x}%`,
-                transform: 'translate(-50%, -50%)',
-                background: selectedSpot.id === spot.id ? 'var(--gold-accent)' : 'rgba(250, 248, 244, 0.9)',
-                color: selectedSpot.id === spot.id ? 'var(--ink-dark)' : 'var(--ink-dark)',
-                border: '1px solid var(--gold-accent)',
-                padding: '0.4rem 0.8rem',
-                borderRadius: 'var(--radius-full)',
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
-                transition: 'all 0.2s ease',
-                zIndex: 5
-              }}
-            >
-              <MapPin size={12} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-1px' }} />
-              {spot.name.split(' ')[0]}
-            </button>
-          ))}
-        </div>
-
-        {/* Hotspot Details Panel */}
-        <div className="bento-col-4" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'rgba(21, 19, 15, 0.88)', padding: '2rem', borderRadius: 'var(--radius-lg)', border: '1px solid rgba(201, 160, 99, 0.35)', boxShadow: '0 15px 40px rgba(0, 0, 0, 0.5)' }}>
-          <span style={{ color: 'var(--gold-accent)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: '0.5rem', display: 'block' }}>
-            {selectedSpot.category} Key Landmark
-          </span>
-          <h4 style={{ fontSize: '1.45rem', fontFamily: 'var(--font-serif)', color: '#FAF8F4', marginBottom: '1rem', fontWeight: 600, lineHeight: 1.25 }}>
-            {selectedSpot.name}
-          </h4>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem', marginBottom: '1.5rem' }}>
-            <div style={{ background: 'rgba(0, 0, 0, 0.45)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(201, 160, 99, 0.3)', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)' }}>
-              <span style={{ fontSize: '0.75rem', color: '#A59E92', fontWeight: 600, display: 'block', marginBottom: '0.2rem' }}>Distance</span>
-              <p style={{ fontSize: '1.35rem', fontWeight: 700, color: '#FAF8F4', margin: 0 }} className="tabular-nums">
-                {selectedSpot.distance}
-              </p>
-            </div>
-            <div style={{ background: 'rgba(0, 0, 0, 0.45)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(201, 160, 99, 0.3)', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)' }}>
-              <span style={{ fontSize: '0.75rem', color: '#A59E92', fontWeight: 600, display: 'block', marginBottom: '0.2rem' }}>Drive Time</span>
-              <p style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--gold-accent)', margin: 0 }} className="tabular-nums">
-                {selectedSpot.travelTime}
-              </p>
+            <div className="loc-center-label">
+              <div className="loc-center-title">{property?.name || 'Site Location'}</div>
+              <div className="loc-center-sub">(Site Location)</div>
             </div>
           </div>
 
-          <p style={{ fontSize: '0.9rem', color: '#A59E92', lineHeight: '1.65', margin: 0, fontWeight: 400 }}>
-            Direct access via the newly constructed 4-lane VIP Temple Highway corridor with zero traffic congestion bottlenecks.
-          </p>
+          {/* Surrounding Landmark Pins */}
+          {hotspots.map((spot) => {
+            const isMatch = activeCategory === 'All' || spot.category === activeCategory;
+            const isSelected = selectedSpot?.id === spot.id;
+
+            return (
+              <button
+                key={spot.id}
+                type="button"
+                onClick={() => setSelectedSpot(spot)}
+                onMouseEnter={() => setHoveredSpot(spot)}
+                onMouseLeave={() => setHoveredSpot(null)}
+                className={`loc-spot-marker ${isSelected ? 'is-active' : ''} ${!isMatch ? 'is-dimmed' : ''}`}
+                style={{
+                  top: `${spot.y}%`,
+                  left: `${spot.x}%`,
+                }}
+                aria-pressed={isSelected}
+                aria-label={`Select landmark ${spot.name}, distance ${spot.distance}, drive time ${spot.travelTime}`}
+              >
+                {/* Teardrop Thumbnail Pin */}
+                <div className="loc-pin-teardrop">
+                  <div className="loc-pin-thumb">
+                    {spot.image && (
+                      <img
+                        src={spot.image}
+                        alt={spot.name}
+                        loading="lazy"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div className="loc-pin-tip" />
+                </div>
+
+                {/* Text Label Box beside Pin */}
+                <div className="loc-pin-label">
+                  <span className="loc-pin-name">{spot.shortName || spot.name}</span>
+                  <span className="loc-pin-dist">{spot.distance}</span>
+                </div>
+              </button>
+            );
+          })}
         </div>
+
+        {/* Right Column: Selected Landmark Key Detail Card */}
+        {selectedSpot && (
+          <aside className="loc-detail-panel" aria-live="polite">
+            <div className="loc-detail-content">
+              <span className="loc-detail-category">
+                {selectedSpot.categoryKey || `${selectedSpot.category?.toUpperCase() || 'KEY'} LANDMARK`}
+              </span>
+              <h3 className="loc-detail-title">
+                {selectedSpot.name}
+              </h3>
+
+              {/* Mobile-Friendly Quick Landmark Tap Strip */}
+              <div className="loc-mobile-landmark-strip" aria-label="Mobile quick location list">
+                {hotspots.map((spot) => (
+                  <button
+                    key={spot.id}
+                    type="button"
+                    onClick={() => setSelectedSpot(spot)}
+                    className={`loc-mobile-card-chip ${selectedSpot.id === spot.id ? 'active' : ''}`}
+                  >
+                    {spot.image && <img src={spot.image} alt="" className="loc-mobile-card-thumb" />}
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontSize: '0.74rem', fontWeight: 600, color: '#FAF8F4', whiteSpace: 'nowrap' }}>
+                        {spot.name.length > 20 ? spot.name.substring(0, 18) + '...' : spot.name}
+                      </div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--gold-accent)', fontWeight: 700 }}>
+                        {spot.distance} • {spot.travelTime}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Landmark Photo Box */}
+              {selectedSpot.image && (
+                <div className="loc-detail-image-box">
+                  <img src={selectedSpot.image} alt={selectedSpot.name} />
+                </div>
+              )}
+
+              {/* Distance & Travel Time Stats Row */}
+              <div className="loc-stats-row">
+                <div className="loc-stat-box">
+                  <span className="loc-stat-label">Distance</span>
+                  <p className="loc-stat-value tabular-nums">{selectedSpot.distance}</p>
+                </div>
+                <div className="loc-stat-box">
+                  <span className="loc-stat-label">Drive Time</span>
+                  <p className="loc-stat-value loc-stat-gold tabular-nums">{selectedSpot.travelTime}</p>
+                </div>
+              </div>
+
+              {/* Description / Road Connectivity Note */}
+              <p className="loc-detail-note">
+                {selectedSpot.note}
+              </p>
+            </div>
+          </aside>
+        )}
       </div>
-    </div>
+    </section>
   );
 }

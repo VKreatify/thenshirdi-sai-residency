@@ -1,0 +1,476 @@
+/* ==========================================================================
+   PLOT MAP INTERACTIVE SVG VIEWER COMPONENT
+   ========================================================================== */
+
+.plotmap-container {
+  position: relative;
+  width: 100%;
+  background: #F7F3EC;
+  border: 1px solid rgba(201, 160, 99, 0.35);
+  border-radius: var(--radius-lg, 24px);
+  overflow: hidden;
+  box-shadow: 0 15px 40px -10px rgba(27, 26, 23, 0.08);
+  touch-action: none;
+  user-select: none;
+}
+
+.plotmap-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 520px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.plotmap__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 520px;
+  cursor: grab;
+  transition: transform 0.05s ease-out;
+}
+
+.plotmap__svg:active {
+  cursor: grabbing;
+}
+
+/* --- Base Drawing Geometry --- */
+
+.plotmap__sheet {
+  fill: #FFFDF9;
+  stroke: #E4D9CE;
+  stroke-width: 1;
+}
+
+.plotmap__site-fill {
+  fill: #FCF9F3;
+  stroke: none;
+}
+
+.plotmap__site-outline {
+  fill: none;
+  stroke: #1B1A17;
+  stroke-width: 2.4;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.plotmap__roads text {
+  pointer-events: none;
+  user-select: none;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 7.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  fill: #857465;
+}
+
+/* --- Plot Elements --- */
+
+.plotmap__plot {
+  cursor: pointer;
+  outline: none;
+}
+
+.plotmap__plot path {
+  transition: fill 150ms cubic-bezier(0.16, 1, 0.3, 1),
+              stroke 150ms cubic-bezier(0.16, 1, 0.3, 1),
+              stroke-width 150ms cubic-bezier(0.16, 1, 0.3, 1),
+              filter 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.plotmap__plot text {
+  pointer-events: none;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  user-select: none;
+  transition: fill 150ms ease;
+}
+
+.plotmap__plot-status {
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Hover & Focus States */
+.plotmap__plot.is-available:hover path,
+.plotmap__plot.is-available:focus-visible path {
+  fill: #FBF0E6;
+  stroke: var(--clay-accent, #A85C3C);
+  stroke-width: 1.4;
+  filter: drop-shadow(0 2px 6px rgba(168, 92, 60, 0.25));
+}
+
+.plotmap__plot.is-selected path {
+  fill: var(--clay-accent, #A85C3C) !important;
+  stroke: #77371E !important;
+  stroke-width: 1.8 !important;
+  filter: drop-shadow(0 4px 10px rgba(168, 92, 60, 0.45));
+}
+
+.plotmap__plot.is-selected:hover path {
+  fill: #8E4C30 !important;
+}
+
+.plotmap__plot.is-highlighted:not(.is-selected) path {
+  fill: #FEF6EA !important;
+  stroke: var(--gold-accent, #C9A063) !important;
+  stroke-width: 1.8 !important;
+  filter: drop-shadow(0 0 12px rgba(201, 160, 99, 0.6));
+}
+
+.plotmap__plot.is-locked {
+  cursor: not-allowed;
+}
+
+.plotmap__plot.is-sold:hover path {
+  fill: #BEB4A9;
+  stroke: #7A6E62;
+  stroke-width: 0.9;
+}
+
+.plotmap__plot.is-reserved:hover path {
+  fill: #EED7CE;
+  stroke: #A85C3C;
+  stroke-width: 1.1;
+}
+
+/* --- Non-Sellable Areas (Parks, Reserves) --- */
+
+.plotmap__area path {
+  pointer-events: none;
+}
+
+.plotmap__area text {
+  pointer-events: none;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  fill: #726253;
+}
+
+.plotmap__area--park path {
+  fill: #E2ECE1;
+  stroke: #A3C59F;
+  stroke-width: 1;
+}
+
+.plotmap__area--reserved path {
+  fill: #EAE5DD;
+  stroke: #C9BEB2;
+  stroke-width: 1;
+}
+
+/* --- Controls Floating HUD --- */
+
+.plotmap__controls {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 10;
+}
+
+.plotmap-btn {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink-dark, #1B1A17);
+  background: rgba(255, 253, 249, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(201, 160, 99, 0.4);
+  border-radius: var(--radius-sm, 10px);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(27, 26, 23, 0.08);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.plotmap-btn:hover {
+  background: var(--ink-dark, #1B1A17);
+  color: #FAF8F4;
+  border-color: var(--ink-dark, #1B1A17);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(27, 26, 23, 0.15);
+}
+
+.plotmap-btn:active {
+  transform: translateY(0);
+}
+
+.plotmap-btn-zoom-level {
+  font-size: 11px;
+  font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--clay-accent, #A85C3C);
+  background: rgba(255, 253, 249, 0.98);
+}
+
+.plotmap-btn-zoom-level:hover {
+  background: var(--clay-accent, #A85C3C);
+  color: #FAF8F4;
+  border-color: var(--clay-accent, #A85C3C);
+}
+
+/* Floating Hover Tooltip HUD */
+.plotmap__tooltip {
+  position: absolute;
+  bottom: 18px;
+  left: 18px;
+  padding: 10px 16px;
+  background: rgba(21, 19, 15, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(201, 160, 99, 0.45);
+  border-radius: var(--radius-sm, 10px);
+  color: #FAF8F4;
+  font-size: 0.85rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: fadeIn 0.2s ease;
+}
+
+.plotmap__tooltip-badge {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.plotmap__tooltip-badge.available {
+  background: rgba(46, 125, 50, 0.25);
+  color: #81C784;
+  border: 1px solid rgba(76, 175, 80, 0.4);
+}
+
+.plotmap__tooltip-badge.reserved {
+  background: rgba(168, 92, 60, 0.35);
+  color: #FFAB91;
+  border: 1px solid rgba(168, 92, 60, 0.6);
+}
+
+.plotmap__tooltip-badge.sold {
+  background: rgba(255, 255, 255, 0.15);
+  color: #BDBDBD;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.plotmap__compass {
+  position: absolute;
+  bottom: 18px;
+  right: 18px;
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 253, 249, 0.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(201, 160, 99, 0.4);
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(27, 26, 23, 0.08);
+  pointer-events: none;
+  z-index: 9;
+}
+
+.plotmap__compass-n {
+  font-size: 10px;
+  font-weight: 900;
+  color: var(--clay-accent, #A85C3C);
+  line-height: 1;
+}
+
+.plotmap__compass-arrow {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 9px solid var(--clay-accent, #A85C3C);
+  margin-bottom: 2px;
+}
+
+/* Desktop Only Controls */
+.desktop-only-controls {
+  display: flex;
+}
+
+/* Mobile Zoom & Navigation Dock (Hidden on Desktop) */
+.plotmap__mobile-dock {
+  display: none;
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 12;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.plotmap__mobile-presets,
+.plotmap__mobile-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+.plotmap__mobile-presets {
+  justify-content: center;
+  background: rgba(21, 19, 15, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(201, 160, 99, 0.35);
+  border-radius: var(--radius-full, 9999px);
+  padding: 4px 6px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  align-self: center;
+}
+
+.mobile-preset-btn {
+  padding: 5px 12px;
+  font-size: 11px;
+  font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #FAF8F4;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-full, 9999px);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+.mobile-preset-btn.active {
+  background: var(--clay-accent, #A85C3C);
+  color: #FAF8F4;
+  box-shadow: 0 2px 8px rgba(168, 92, 60, 0.4);
+}
+
+.plotmap__mobile-actions {
+  justify-content: space-between;
+  width: 100%;
+}
+
+.plotmap-mobile-action-btn {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 253, 249, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(201, 160, 99, 0.45);
+  border-radius: 12px;
+  color: var(--ink-dark, #1B1A17);
+  box-shadow: 0 4px 14px rgba(27, 26, 23, 0.12);
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.plotmap-mobile-action-btn:active {
+  transform: scale(0.92);
+  background: var(--ink-dark, #1B1A17);
+  color: #FAF8F4;
+}
+
+.plotmap-mobile-action-btn.reset-btn {
+  color: var(--clay-accent, #A85C3C);
+}
+
+.plotmap-mobile-level-pill {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--clay-accent, #A85C3C);
+  background: rgba(255, 253, 249, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(201, 160, 99, 0.4);
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(27, 26, 23, 0.08);
+}
+
+/* Mobile Media Queries */
+@media (max-width: 768px) {
+  .desktop-only-controls {
+    display: none !important;
+  }
+
+  .plotmap__mobile-dock {
+    display: flex !important;
+  }
+
+  .plotmap-container {
+    border-radius: 18px;
+  }
+
+  .plotmap-wrapper {
+    height: clamp(380px, 58vh, 500px);
+    min-height: 380px;
+  }
+
+  .plotmap__svg {
+    height: clamp(380px, 58vh, 500px);
+    min-height: 380px;
+  }
+
+  .plotmap__tooltip {
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    justify-content: center;
+    font-size: 0.8rem;
+    padding: 9px 14px;
+    border-radius: 12px;
+  }
+
+  .plotmap__compass {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .plotmap-wrapper {
+    height: clamp(350px, 55vh, 460px);
+    min-height: 350px;
+  }
+
+  .plotmap__svg {
+    height: clamp(350px, 55vh, 460px);
+    min-height: 350px;
+  }
+
+  .mobile-preset-btn {
+    padding: 4px 10px;
+    font-size: 10.5px;
+  }
+
+  .plotmap-mobile-action-btn {
+    width: 38px;
+    height: 38px;
+  }
+}
+

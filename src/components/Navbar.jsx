@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, PhoneCall, FileText } from 'lucide-react';
+import { Menu, X, FileText } from 'lucide-react';
+import useProperty from '../hooks/useProperty';
 
 export default function Navbar({ onOpenBooking, onDownloadBrochure }) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const { property, assets, navigation } = useProperty();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -32,23 +34,47 @@ export default function Navbar({ onOpenBooking, onDownloadBrochure }) {
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
-  const navLinks = [
+  const navLinks = navigation?.links || [
     { name: 'Home', path: '/' },
     { name: 'The Vision', path: '/about' },
-    { name: 'Residences', path: '/properties' },
-    { name: 'Projects', path: '/projects' },
+    { name: 'Your Vista', path: '/master-plan' },
     { name: 'Gallery', path: '/gallery' },
     { name: 'Location', path: '/location' },
     { name: 'Contact', path: '/contact' }
   ];
 
+  const logoSrc = assets?.logo;
+  const preloaderLogoSrc = assets?.preloaderLogo || logoSrc;
+
   return (
-    <header className="nav-fixed-header">
+    <header className={`nav-fixed-header ${scrolled ? 'header-scrolled' : ''}`}>
+      {/* Top Left Corner Logo (Outside Navbar Container - Desktop Only) */}
+      {logoSrc && (
+        <Link to="/" className={`top-left-site-logo ${scrolled ? 'logo-scrolled' : ''}`} aria-label={`${property?.name || 'Property'} Home`}>
+          <img
+            src={logoSrc}
+            alt={`${property?.name || 'Property'} Logo`}
+            className="site-logo-img"
+          />
+        </Link>
+      )}
+
       <nav className={`nav-bar-container ${scrolled ? 'nav-scrolled' : ''}`}>
-        {/* Brand Logo */}
-        <Link to="/" className="nav-logo" aria-label="Thenshirdi Sai Residency Home">
-          <span className="logo-brand-mark">THENSHIRDI</span>
-          <span className="logo-brand-text">Sai Residency</span>
+        {/* Brand Logo & Title */}
+        <Link to="/" className="nav-logo" aria-label={`${property?.name || 'Property'} Home`}>
+          {(scrolled ? preloaderLogoSrc : logoSrc) && (
+            <img
+              src={scrolled ? preloaderLogoSrc : logoSrc}
+              alt={`${property?.name || 'Property'} Logo`}
+              className="nav-title-logo-img"
+            />
+          )}
+          <div className="nav-logo-text-wrapper">
+            <span className="logo-brand-mark">{property?.brandMark || property?.name}</span>
+            {property?.brandText && (
+              <span className="logo-brand-text">{property?.brandText}</span>
+            )}
+          </div>
         </Link>
 
         {/* Desktop & Laptop Menu Links (Visible on >= 1025px) */}
@@ -67,22 +93,16 @@ export default function Navbar({ onOpenBooking, onDownloadBrochure }) {
 
         {/* Action CTAs */}
         <div className="nav-actions-wrapper">
-          <button
-            onClick={onDownloadBrochure}
-            className="btn-architectural btn-sand-outline nav-cta-btn hidden-mobile-laptop"
-            title="Download Official e-Brochure"
-          >
-            <FileText size={15} />
-            <span>e-Brochure</span>
-          </button>
-
-          <button
-            onClick={onOpenBooking}
-            className="btn-architectural btn-clay nav-cta-btn hidden-mobile-laptop"
-          >
-            <PhoneCall size={15} />
-            <span>Enquire</span>
-          </button>
+          {navigation?.headerCtas?.showBrochureButton !== false && (
+            <button
+              onClick={onDownloadBrochure}
+              className="btn-architectural btn-sand-outline nav-cta-btn hidden-mobile-laptop"
+              title="Download Official e-Brochure"
+            >
+              <FileText size={15} />
+              <span>{navigation?.headerCtas?.brochureButtonText || 'e-Brochure'}</span>
+            </button>
+          )}
 
           {/* Mobile & Tablet Hamburger Toggle Button (Visible on < 1025px) */}
           <button
@@ -140,29 +160,19 @@ export default function Navbar({ onOpenBooking, onDownloadBrochure }) {
             </ul>
 
             <div className="mobile-drawer-actions">
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onOpenBooking();
-                }}
-                className="btn-architectural btn-clay"
-                style={{ width: '100%', padding: '0.85rem', justifyContent: 'center' }}
-              >
-                <PhoneCall size={16} />
-                <span>Schedule Private Enquiry</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onDownloadBrochure();
-                }}
-                className="btn-architectural btn-sand-outline"
-                style={{ width: '100%', padding: '0.85rem', justifyContent: 'center' }}
-              >
-                <FileText size={16} />
-                <span>Download e-Brochure</span>
-              </button>
+              {navigation?.headerCtas?.showBrochureButton !== false && (
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onDownloadBrochure();
+                  }}
+                  className="btn-architectural btn-sand-outline"
+                  style={{ width: '100%', padding: '0.85rem', justifyContent: 'center' }}
+                >
+                  <FileText size={16} />
+                  <span>Download {navigation?.headerCtas?.brochureButtonText || 'e-Brochure'}</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

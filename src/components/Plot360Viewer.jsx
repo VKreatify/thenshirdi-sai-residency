@@ -23,7 +23,7 @@ const PANORAMA_TEXTURES = {
 // Interactive Hotspots per unit orientation
 const HOTSPOTS_BY_FACING = {
   'East Facing (Vastu Supreme)': [
-    { id: 1, angle: 45, label: 'Shirdi Sai Temple Axis (5 Mins)' },
+    { id: 1, angle: 45, label: 'Main Road Entrance Axis' },
     { id: 2, angle: 135, label: 'Sunrise Vastu Balcony Deck' },
     { id: 3, angle: 250, label: 'Private Lift Foyer Entrance' }
   ],
@@ -44,11 +44,11 @@ export default function Plot360Viewer({ selectedPlot }) {
   const [rotationX, setRotationX] = useState(0); // Horizontal angle (0 - 360)
   const [isAutoRotating, setIsAutoRotating] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
-  const [startX, setStartX] = useState(0);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
 
   const containerRef = useRef(null);
+  const startXRef = useRef(0);
 
   // Default fallback if plot is not specified
   const currentPlot = selectedPlot || {
@@ -68,12 +68,19 @@ export default function Plot360Viewer({ selectedPlot }) {
     HOTSPOTS_BY_FACING[currentPlot.facing] ||
     HOTSPOTS_BY_FACING['East Facing (Vastu Supreme)'];
 
+  // Safe extraction of clientX from Mouse or Touch events
+  const getClientX = (e) => {
+    if (e.touches && e.touches.length > 0) return e.touches[0].clientX;
+    if (e.changedTouches && e.changedTouches.length > 0) return e.changedTouches[0].clientX;
+    return e.clientX || 0;
+  };
+
   // Auto-rotation timer loop
   useEffect(() => {
     let animationFrame;
     if (isAutoRotating && !isDragging) {
       const rotate = () => {
-        setRotationX((prev) => (prev + 0.22) % 360);
+        setRotationX((prev) => (prev + 0.18) % 360);
         animationFrame = requestAnimationFrame(rotate);
       };
       animationFrame = requestAnimationFrame(rotate);
@@ -81,22 +88,40 @@ export default function Plot360Viewer({ selectedPlot }) {
     return () => cancelAnimationFrame(animationFrame);
   }, [isAutoRotating, isDragging]);
 
-  // Mouse & Touch Drag Handlers
-  const handleMouseDown = (e) => {
-    setIsDragging(true);
-    setStartX(e.clientX || e.touches?.[0]?.clientX || 0);
-  };
-
-  const handleMouseMove = (e) => {
+  // Global mouse & touch listeners while dragging to prevent drag-lock glitches when releasing outside
+  useEffect(() => {
     if (!isDragging) return;
-    const currentClientX = e.clientX || e.touches?.[0]?.clientX || 0;
-    const deltaX = currentClientX - startX;
-    setRotationX((prev) => (prev - deltaX * 0.45 + 360) % 360);
-    setStartX(currentClientX);
-  };
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
+    const handleWindowMove = (e) => {
+      const currentX = getClientX(e);
+      const deltaX = currentX - startXRef.current;
+      startXRef.current = currentX;
+      setRotationX((prev) => (prev - deltaX * 0.4 + 360) % 360);
+    };
+
+    const handleWindowUp = () => {
+      setIsDragging(false);
+    };
+
+    window.addEventListener('mousemove', handleWindowMove);
+    window.addEventListener('mouseup', handleWindowUp);
+    window.addEventListener('touchmove', handleWindowMove, { passive: true });
+    window.addEventListener('touchend', handleWindowUp);
+    window.addEventListener('touchcancel', handleWindowUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMove);
+      window.removeEventListener('mouseup', handleWindowUp);
+      window.removeEventListener('touchmove', handleWindowMove);
+      window.removeEventListener('touchend', handleWindowUp);
+      window.removeEventListener('touchcancel', handleWindowUp);
+    };
+  }, [isDragging]);
+
+  const handleStartDrag = (e) => {
+    const startX = getClientX(e);
+    startXRef.current = startX;
+    setIsDragging(true);
   };
 
   return (
@@ -189,13 +214,8 @@ export default function Plot360Viewer({ selectedPlot }) {
       {/* Main 360 Viewport Container */}
       <div
         ref={containerRef}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onTouchStart={handleMouseDown}
-        onTouchMove={handleMouseMove}
-        onTouchEnd={handleMouseUp}
+        onMouseDown={handleStartDrag}
+        onTouchStart={handleStartDrag}
         style={{
           position: 'relative',
           height: '440px',
@@ -385,8 +405,8 @@ export default function Plot360Viewer({ selectedPlot }) {
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
           <span>Unit: <strong style={{ color: 'var(--gold-accent)' }}>Plot #{currentPlot.number}</strong></span>
-          <span>Carpet Area: <strong style={{ color: '#FAF8F4' }}>{currentPlot.carpetArea}</strong></span>
-          <span>Valuation: <strong style={{ color: 'var(--gold-accent)' }}>{currentPlot.price}</strong></span>
+          <span>Plot Area: <strong style={{ color: '#FAF8F4' }}>{currentPlot.carpetArea}</strong></span>
+          <span>Plot Facing: <strong style={{ color: 'var(--gold-accent)' }}>{currentPlot.facing}</strong></span>
         </div>
       </div>
 
@@ -410,7 +430,7 @@ export default function Plot360Viewer({ selectedPlot }) {
                 Full-Screen 360° Tour — Plot Unit #{currentPlot.number} ({currentPlot.type})
               </span>
               <span style={{ fontSize: '0.82rem', color: 'var(--text-muted-dark)' }}>
-                {currentPlot.facing} · {currentPlot.carpetArea} · {currentPlot.price}
+                {currentPlot.facing} · {currentPlot.carpetArea}
               </span>
             </div>
 
@@ -434,12 +454,8 @@ export default function Plot360Viewer({ selectedPlot }) {
           </div>
 
           <div
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onTouchStart={handleMouseDown}
-            onTouchMove={handleMouseMove}
-            onTouchEnd={handleMouseUp}
+            onMouseDown={handleStartDrag}
+            onTouchStart={handleStartDrag}
             style={{
               flex: 1,
               position: 'relative',

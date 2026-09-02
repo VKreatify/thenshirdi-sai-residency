@@ -1,71 +1,86 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Sparkles, CheckCircle2, Lock, ArrowRight, Info, RotateCcw } from 'lucide-react';
 import TiltCard from './TiltCard';
 import Plot360Viewer from './Plot360Viewer';
+import { inventory, STATUS } from '../data/plotLayout/plotInventory';
 
-// Static plot data definition with balanced reserved plot distribution
-const PLOTS_DATA = Array.from({ length: 41 }, (_, i) => {
-  const num = i + 1;
-  // Specific reserved plots matching luxury residency inventory distribution (~14 reserved)
-  const isReserved = [1, 2, 3, 4, 6, 7, 11, 16, 18, 21, 26, 31, 36, 41].includes(num);
-
-  let type = '2 BHK Executive Suite';
-  let carpetArea = '1,120 Sq.Ft.';
-  let price = '₹ 1.15 Cr';
-  let floor = `Level 0${Math.ceil(num / 6)}`;
-  let facing = 'East Facing (Vastu Supreme)';
-
-  if (num % 3 === 0) {
-    type = '3 BHK Royal Sanctuary';
-    carpetArea = '1,480 Sq.Ft.';
-    price = '₹ 1.55 Cr';
-    facing = 'North-East Facing (Morning Sun)';
-  } else if (num % 5 === 0 || num === 41) {
-    type = '4 BHK Duplex Penthouse';
-    carpetArea = '2,250 Sq.Ft.';
-    price = '₹ 2.40 Cr';
-    floor = 'Penthouse Terrace Level';
-    facing = 'Temple Sunrise Panoramic Facing';
-  }
-
+// Format plot data from the official 145-plot inventory
+const PLOTS_DATA = Array.from(inventory.values()).map((meta) => {
+  const isAvailable = meta.status === 'available';
   return {
-    id: num,
-    number: num,
-    type,
-    carpetArea,
-    price,
-    floor,
-    facing,
-    status: isReserved ? 'RESERVED' : 'AVAILABLE'
+    id: meta.id,
+    number: meta.id,
+    type: meta.type,
+    carpetArea: `${meta.areaSqft.toLocaleString()} Sq.Ft. (${meta.cent} Cent)`,
+    areaSqft: meta.areaSqft,
+    cent: meta.cent,
+    price: isAvailable ? 'Ready for Immediate Registration' : 'Sold Out',
+    floor: meta.type,
+    facing: `${meta.facing} Facing`,
+    status: isAvailable ? 'AVAILABLE' : 'SOLD'
   };
 });
 
 export default function PlotChooser({ onOpenBooking }) {
-  const [filter, setFilter] = useState('ALL'); // 'ALL' | 'AVAILABLE' | 'RESERVED'
-  const [selectedPlot, setSelectedPlot] = useState(PLOTS_DATA[0]);
+  const [filter, setFilter] = useState('ALL'); // 'ALL' | 'AVAILABLE' | 'SOLD'
+  const [selectedPlot, setSelectedPlot] = useState(() => PLOTS_DATA.find((p) => p.status === 'AVAILABLE') || PLOTS_DATA[0]);
   const [hoveredPlot, setHoveredPlot] = useState(null);
 
   const activePlot = hoveredPlot || selectedPlot || PLOTS_DATA[0];
 
+  const counts = useMemo(() => {
+    const available = PLOTS_DATA.filter((p) => p.status === 'AVAILABLE').length;
+    const sold = PLOTS_DATA.filter((p) => p.status === 'SOLD').length;
+    return { all: PLOTS_DATA.length, available, sold };
+  }, []);
+
+  const handleExplore360 = (e) => {
+    e.preventDefault();
+    const el = document.getElementById('plot-360-feature');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const handleEnquirePlot = () => {
+    if (!onOpenBooking) return;
+    if (activePlot) {
+      onOpenBooking({
+        number: activePlot.number,
+        status: activePlot.status,
+        areaSqft: activePlot.areaSqft,
+        cent: activePlot.cent
+      });
+    } else {
+      onOpenBooking(null);
+    }
+  };
+
   return (
     <section className="section-padding" style={{ backgroundColor: 'var(--bg-sand-muted)', color: 'var(--ink-dark)' }}>
       <div className="container">
-        
+
         {/* Section Header */}
-        <div style={{ textAlign: 'center', maxWidth: '780px', margin: '0 auto 3.5rem' }}>
-          <h2 className="section-title-fluid font-serif" style={{ color: '#FAF8F4', marginBottom: '1.25rem' }}>
+        <div style={{ textAlign: 'center', maxWidth: '820px', margin: '0 auto 3.5rem' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(21, 19, 15, 0.08)', padding: '0.35rem 1rem', borderRadius: 'var(--radius-full)', marginBottom: '1rem' }}>
+            <Sparkles size={14} style={{ color: 'var(--clay-accent)' }} />
+            <span style={{ fontSize: '0.78rem', letterSpacing: '0.14em', fontWeight: 800, color: 'var(--clay-accent)', textTransform: 'uppercase' }}>
+              SANCTIONED LAYOUT INVENTORY · 145 PLOTS
+            </span>
+          </div>
+          <h2 className="section-title-fluid font-serif" style={{ color: 'var(--ink-dark)', marginBottom: '1.25rem' }}>
             Interactive Plot & Residence Chooser
           </h2>
-          <p style={{ fontSize: '1.1rem', color: '#FAF8F4', lineHeight: '1.8', fontWeight: 500 }}>
-            Select a plot configuration below to inspect real-time inventory, orientation geometry, carpet area metrics, and valuation details.
+          <p style={{ fontSize: '1.1rem', color: 'var(--text-body)', lineHeight: '1.8', fontWeight: 500 }}>
+            {counts.available} plots are verified and available for sale with immediate registration. The remaining {counts.sold} plots are sold out. Select any plot unit below to inspect specifications.
           </p>
         </div>
 
         {/* =========================================================================
-            DESKTOP / SYSTEM VIEW (Shown ONLY on screen width >= 769px)
+            DESKTOP / SYSTEM VIEW (Shown on screen width >= 769px)
             ========================================================================= */}
         <TiltCard
-          maxTilt={4}
+          maxTilt={0}
           scale={1}
           showGlow={false}
           className="plot-chooser-desktop-view"
@@ -82,7 +97,7 @@ export default function PlotChooser({ onOpenBooking }) {
           <div
             style={{
               display: 'flex',
-              justify: 'space-between',
+              justifyContent: 'space-between',
               alignItems: 'center',
               flexWrap: 'wrap',
               gap: '1rem',
@@ -101,113 +116,134 @@ export default function PlotChooser({ onOpenBooking }) {
                   textTransform: 'uppercase'
                 }}
               >
-                INTERACTIVE PLOT CHOOSER · 41 PLOTS
+                INTERACTIVE PLOT INVENTORY · {counts.all} PLOTS
               </span>
             </div>
 
             {/* Filter Tabs */}
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              {['ALL', 'AVAILABLE', 'RESERVED'].map((tab) => {
-                const isActive = filter === tab;
+              {[
+                { id: 'ALL', label: `All (${counts.all})` },
+                { id: 'AVAILABLE', label: `Available for Sale (${counts.available})` },
+                { id: 'SOLD', label: `Sold Out (${counts.sold})` }
+              ].map((tab) => {
+                const isActive = filter === tab.id;
                 return (
                   <button
-                    key={tab}
-                    onClick={() => setFilter(tab)}
+                    key={tab.id}
+                    onClick={() => setFilter(tab.id)}
                     style={{
                       padding: '0.45rem 1.15rem',
                       fontSize: '0.78rem',
                       fontWeight: 700,
-                      letterSpacing: '0.12em',
+                      letterSpacing: '0.08em',
                       textTransform: 'uppercase',
                       cursor: 'pointer',
                       borderRadius: 'var(--radius-sm)',
                       transition: 'all 0.25s ease',
                       background: isActive ? 'var(--ink-dark)' : 'transparent',
-                      color: isActive ? 'var(--bg-sand)' : 'var(--text-body)',
+                      color: isActive ? '#FAF8F4' : 'var(--text-body)',
                       border: isActive ? '1px solid var(--ink-dark)' : '1px solid rgba(27, 26, 23, 0.15)'
                     }}
                   >
-                    {tab}
+                    {tab.label}
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Grid Matrix (41 Plot Cards) */}
+          {/* Grid Matrix (145 Plots) */}
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))',
-              gap: '1rem',
-              marginBottom: '2.5rem'
+              gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
+              gap: '0.65rem',
+              maxHeight: '380px',
+              overflowY: 'auto',
+              paddingRight: '0.5rem',
+              marginBottom: '2rem'
             }}
           >
             {PLOTS_DATA.map((plot) => {
               const isFilteredOut = filter !== 'ALL' && plot.status !== filter;
               const isSelected = activePlot?.id === plot.id;
-              const isReserved = plot.status === 'RESERVED';
+              const isSold = plot.status === 'SOLD';
 
               return (
                 <div
                   key={plot.id}
+                  role="button"
+                  tabIndex={isFilteredOut ? -1 : 0}
+                  aria-label={`Plot #${plot.number}, ${plot.type}, Status ${plot.status}`}
                   onClick={() => setSelectedPlot(plot)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedPlot(plot);
+                    }
+                  }}
                   onMouseEnter={() => setHoveredPlot(plot)}
                   onMouseLeave={() => setHoveredPlot(null)}
                   style={{
-                    height: '115px',
+                    height: '85px',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    justify: 'center',
+                    justifyContent: 'center',
                     cursor: isFilteredOut ? 'default' : 'pointer',
                     borderRadius: 'var(--radius-sm)',
-                    transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-                    opacity: isFilteredOut ? 0.25 : 1,
+                    transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                    opacity: isFilteredOut ? 0.2 : isSold ? 0.65 : 1,
                     pointerEvents: isFilteredOut ? 'none' : 'auto',
                     position: 'relative',
-                    background: isReserved
-                      ? 'rgba(168, 92, 60, 0.12)'
+                    background: isSold
+                      ? '#E8E3DC'
                       : isSelected
-                      ? 'rgba(168, 92, 60, 0.08)'
-                      : '#FFFFFF',
+                        ? 'rgba(168, 92, 60, 0.1)'
+                        : '#FFFFFF',
                     border: isSelected
                       ? '2px solid var(--clay-accent)'
-                      : isReserved
-                      ? '1px solid rgba(168, 92, 60, 0.45)'
-                      : '1px solid rgba(27, 26, 23, 0.12)',
+                      : isSold
+                        ? '1px solid #B8ADA2'
+                        : '1px solid rgba(27, 26, 23, 0.15)',
                     boxShadow: isSelected
-                      ? '0 0 18px rgba(168, 92, 60, 0.3), inset 0 0 10px rgba(168, 92, 60, 0.1)'
-                      : '0 2px 8px rgba(27, 26, 23, 0.04)',
-                    transform: isSelected ? 'scale(1.05)' : 'scale(1)'
+                      ? '0 0 16px rgba(168, 92, 60, 0.3), inset 0 0 8px rgba(168, 92, 60, 0.08)'
+                      : '0 2px 6px rgba(27, 26, 23, 0.03)',
+                    transform: isSelected ? 'scale(1.05)' : 'scale(1)',
+                    zIndex: isSelected ? 2 : 1
                   }}
                 >
                   <span
                     style={{
                       fontSize: '1.25rem',
-                      fontFamily: 'var(--font-serif)',
-                      fontWeight: 700,
-                      color: isReserved
-                        ? 'var(--clay-accent)'
+                      fontFamily: "'Outfit', 'Plus Jakarta Sans', sans-serif",
+                      fontWeight: 800,
+                      letterSpacing: '-0.02em',
+                      fontVariantNumeric: 'lining-nums tabular-nums',
+                      color: isSold
+                        ? '#82786E'
                         : isSelected
-                        ? 'var(--clay-accent)'
-                        : 'var(--ink-dark)'
+                          ? 'var(--clay-accent)'
+                          : 'var(--ink-dark)'
                     }}
                   >
                     {plot.number}
                   </span>
-                  
-                  <span
-                    style={{
-                      fontSize: '0.62rem',
-                      fontWeight: 600,
-                      letterSpacing: '0.08em',
-                      marginTop: '0.35rem',
-                      color: isReserved ? 'var(--clay-accent)' : 'var(--text-muted)'
-                    }}
-                  >
-                    {isReserved ? 'RESERVED' : 'AVAILABLE'}
-                  </span>
+
+                  {isSold && (
+                    <span
+                      style={{
+                        fontSize: '0.58rem',
+                        fontWeight: 700,
+                        letterSpacing: '0.06em',
+                        marginTop: '0.2rem',
+                        color: '#82786E'
+                      }}
+                    >
+                      SOLD
+                    </span>
+                  )}
                 </div>
               );
             })}
@@ -217,7 +253,7 @@ export default function PlotChooser({ onOpenBooking }) {
           <div
             style={{
               display: 'flex',
-              justify: 'space-between',
+              justifyContent: 'space-between',
               alignItems: 'center',
               flexWrap: 'wrap',
               gap: '1rem',
@@ -237,8 +273,8 @@ export default function PlotChooser({ onOpenBooking }) {
                     borderRadius: '2px'
                   }}
                 />
-                <span style={{ fontSize: '0.78rem', letterSpacing: '0.1em', fontWeight: 600, color: 'var(--ink-dark)' }}>
-                  AVAILABLE
+                <span style={{ fontSize: '0.78rem', letterSpacing: '0.08em', fontWeight: 700, color: '#2e7d32' }}>
+                  AVAILABLE FOR SALE ({counts.available})
                 </span>
               </div>
 
@@ -247,21 +283,21 @@ export default function PlotChooser({ onOpenBooking }) {
                   style={{
                     width: '14px',
                     height: '14px',
-                    border: '1px solid rgba(168, 92, 60, 0.6)',
-                    background: 'rgba(168, 92, 60, 0.18)',
+                    border: '1px solid #B8ADA2',
+                    background: '#E8E3DC',
                     borderRadius: '2px'
                   }}
                 />
-                <span style={{ fontSize: '0.78rem', letterSpacing: '0.1em', fontWeight: 600, color: 'var(--clay-accent)' }}>
-                  RESERVED
+                <span style={{ fontSize: '0.78rem', letterSpacing: '0.08em', fontWeight: 600, color: '#82786E' }}>
+                  SOLD OUT ({counts.sold})
                 </span>
               </div>
             </div>
 
             {/* Hint */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.78rem', letterSpacing: '0.1em' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.78rem', letterSpacing: '0.06em' }}>
               <Info size={14} style={{ color: 'var(--clay-accent)' }} />
-              <span>HOVER OR CLICK A PLOT FOR SPECIFICATIONS</span>
+              <span>CLICK ON ANY PLOT TO INSPECT SPECIFICATIONS</span>
             </div>
           </div>
 
@@ -284,10 +320,10 @@ export default function PlotChooser({ onOpenBooking }) {
             >
               <div>
                 <span style={{ fontSize: '0.72rem', letterSpacing: '0.15em', color: 'var(--clay-accent)', fontWeight: 700, textTransform: 'uppercase' }}>
-                  SELECTED RESIDENCE
+                  SELECTED RESIDENCE PLOT
                 </span>
                 <h3 style={{ fontSize: '1.8rem', fontFamily: 'var(--font-serif)', color: 'var(--ink-dark)', marginTop: '0.2rem' }}>
-                  Plot Unit #{activePlot.number}
+                  Plot Unit <span style={{ fontFamily: "'Outfit', 'Plus Jakarta Sans', sans-serif", fontWeight: 800 }}>#{activePlot.number}</span>
                 </h3>
                 <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.25rem' }}>
                   {activePlot.type}
@@ -295,18 +331,25 @@ export default function PlotChooser({ onOpenBooking }) {
               </div>
 
               <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Floor Level</span>
-                <strong style={{ fontSize: '1.05rem', color: 'var(--ink-dark)' }}>{activePlot.floor}</strong>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.75rem' }}>Orientation</span>
-                <strong style={{ fontSize: '0.95rem', color: 'var(--clay-accent)' }}>{activePlot.facing}</strong>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Plot Area</span>
+                <strong style={{ fontSize: '1.15rem', color: 'var(--ink-dark)', fontFamily: 'var(--font-serif)', display: 'block' }}>
+                  {activePlot.areaSqft.toLocaleString()} Sq.Ft.
+                </strong>
+                {activePlot.cent && (
+                  <span style={{ fontSize: '0.85rem', color: 'var(--clay-accent)', fontWeight: 700 }}>
+                    {activePlot.cent} Cent
+                  </span>
+                )}
               </div>
 
               <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Carpet Area</span>
-                <strong style={{ fontSize: '1.05rem', color: 'var(--ink-dark)' }}>{activePlot.carpetArea}</strong>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.75rem' }}>Price Valuation</span>
-                <strong className="tabular-nums" style={{ fontSize: '1.3rem', color: 'var(--ink-dark)', fontFamily: 'var(--font-serif)' }}>
-                  {activePlot.price}
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Plot Facing</span>
+                <strong style={{ fontSize: '1.05rem', color: 'var(--clay-accent)' }}>
+                  {activePlot.facing}
+                </strong>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.5rem' }}>Availability</span>
+                <strong style={{ fontSize: '0.9rem', color: activePlot.status === 'AVAILABLE' ? '#2e7d32' : '#82786E' }}>
+                  {activePlot.status === 'AVAILABLE' ? 'Immediate Registration' : 'Sold Out'}
                 </strong>
               </div>
 
@@ -315,37 +358,47 @@ export default function PlotChooser({ onOpenBooking }) {
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    justify: 'center',
+                    justifyContent: 'center',
                     gap: '0.4rem',
                     padding: '0.45rem 0.8rem',
                     borderRadius: 'var(--radius-full)',
                     fontSize: '0.78rem',
                     fontWeight: 700,
                     letterSpacing: '0.08em',
-                    background: activePlot.status === 'AVAILABLE' ? 'rgba(201, 160, 99, 0.15)' : 'rgba(168, 92, 60, 0.15)',
-                    color: activePlot.status === 'AVAILABLE' ? 'var(--ink-dark)' : 'var(--clay-accent)',
-                    border: activePlot.status === 'AVAILABLE' ? '1px solid rgba(201, 160, 99, 0.5)' : '1px solid rgba(168, 92, 60, 0.4)'
+                    background: activePlot.status === 'AVAILABLE' ? 'rgba(46, 125, 50, 0.12)' : 'rgba(130, 120, 110, 0.12)',
+                    color: activePlot.status === 'AVAILABLE' ? '#2e7d32' : '#82786E',
+                    border: activePlot.status === 'AVAILABLE' ? '1px solid rgba(76, 175, 80, 0.4)' : '1px solid rgba(130, 120, 110, 0.3)'
                   }}
                 >
-                  {activePlot.status === 'AVAILABLE' ? <CheckCircle2 size={14} style={{ color: 'var(--gold-accent)' }} /> : <Lock size={14} />}
+                  {activePlot.status === 'AVAILABLE' ? <CheckCircle2 size={14} style={{ color: '#2e7d32' }} /> : <Lock size={14} />}
                   STATUS: {activePlot.status}
                 </span>
 
-                <button
-                  onClick={onOpenBooking}
-                  className="btn-architectural btn-clay"
-                  style={{ width: '100%', fontSize: '0.82rem', padding: '0.75rem' }}
-                >
-                  {activePlot.status === 'AVAILABLE' ? 'Reserve This Unit' : 'Inquire Waiting List'} <ArrowRight size={14} />
-                </button>
+                {activePlot.status === 'AVAILABLE' ? (
+                  <button
+                    onClick={handleEnquirePlot}
+                    className="btn-architectural btn-clay"
+                    style={{ width: '100%', fontSize: '0.82rem', padding: '0.75rem', justifyContent: 'center' }}
+                  >
+                    <span>Enquire Us</span> <ArrowRight size={14} />
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleEnquirePlot}
+                    className="btn-architectural btn-sand-outline"
+                    style={{ width: '100%', fontSize: '0.82rem', padding: '0.75rem', justifyContent: 'center' }}
+                  >
+                    <span>Inquire Waiting List</span> <ArrowRight size={14} />
+                  </button>
+                )}
 
-                <a
-                  href="#plot-360-feature"
+                <button
+                  onClick={handleExplore360}
                   className="btn-architectural btn-gold-outline"
-                  style={{ width: '100%', fontSize: '0.8rem', padding: '0.6rem', textAlign: 'center' }}
+                  style={{ width: '100%', fontSize: '0.8rem', padding: '0.6rem', textAlign: 'center', cursor: 'pointer', justifyContent: 'center' }}
                 >
                   <RotateCcw size={14} /> Explore 360° View
-                </a>
+                </button>
               </div>
             </div>
           )}
@@ -353,10 +406,10 @@ export default function PlotChooser({ onOpenBooking }) {
 
 
         {/* =========================================================================
-            MOBILE VIEW — COMPACT CINEMA TICKET BOOKING SEAT SELECTOR (< 768px)
+            MOBILE VIEW (< 768px)
             ========================================================================= */}
         <TiltCard
-          maxTilt={3}
+          maxTilt={0}
           scale={1}
           showGlow={false}
           className="plot-chooser-mobile-view"
@@ -374,30 +427,33 @@ export default function PlotChooser({ onOpenBooking }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
               <div>
                 <span style={{ fontSize: '0.68rem', letterSpacing: '0.15em', fontWeight: 800, color: 'var(--clay-accent)', textTransform: 'uppercase' }}>
-                  MASTERPLAN INVENTORY
+                  SANCTIONED INVENTORY
                 </span>
                 <h3 style={{ fontSize: '1.25rem', fontFamily: 'var(--font-serif)', color: 'var(--ink-dark)', margin: 0 }}>
                   Select Residence Plot
                 </h3>
               </div>
               <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.25rem 0.65rem', borderRadius: 'var(--radius-full)', background: 'rgba(27,26,23,0.06)', color: 'var(--ink-dark)' }}>
-                41 Units
+                {counts.all} Plots
               </span>
             </div>
 
-            {/* Cinema Segmented Filter Tabs */}
+            {/* Segmented Filter Tabs */}
             <div style={{ display: 'flex', gap: '0.4rem', background: 'rgba(27, 26, 23, 0.05)', padding: '4px', borderRadius: 'var(--radius-sm)' }}>
-              {['ALL', 'AVAILABLE', 'RESERVED'].map((tab) => {
-                const isActive = filter === tab;
-                const count = tab === 'ALL' ? 41 : tab === 'AVAILABLE' ? 27 : 14;
+              {[
+                { id: 'ALL', label: `ALL (${counts.all})` },
+                { id: 'AVAILABLE', label: `AVAILABLE (${counts.available})` },
+                { id: 'SOLD', label: `SOLD (${counts.sold})` }
+              ].map((tab) => {
+                const isActive = filter === tab.id;
                 return (
                   <button
-                    key={tab}
-                    onClick={() => setFilter(tab)}
+                    key={tab.id}
+                    onClick={() => setFilter(tab.id)}
                     style={{
                       flex: 1,
                       padding: '0.5rem 0.2rem',
-                      fontSize: '0.7rem',
+                      fontSize: '0.68rem',
                       fontWeight: 700,
                       letterSpacing: '0.05em',
                       textTransform: 'uppercase',
@@ -406,49 +462,57 @@ export default function PlotChooser({ onOpenBooking }) {
                       border: 'none',
                       transition: 'all 0.2s ease',
                       background: isActive ? 'var(--ink-dark)' : 'transparent',
-                      color: isActive ? 'var(--bg-sand)' : 'var(--text-muted)'
+                      color: isActive ? '#FAF8F4' : 'var(--text-muted)'
                     }}
                   >
-                    {tab} ({count})
+                    {tab.label}
                   </button>
                 );
               })}
             </div>
           </div>
 
-
-
-          {/* Cinema High-Density Compact Seat Grid Matrix (6 Columns) */}
-          <div className="cinema-seat-grid" style={{ marginBottom: '1.25rem' }}>
+          {/* High-Density Compact Seat Grid Matrix (6 Columns, scrollable) */}
+          <div className="cinema-seat-grid" style={{ maxHeight: '300px', overflowY: 'auto', marginBottom: '1.25rem', paddingRight: '4px' }}>
             {PLOTS_DATA.map((plot) => {
               const isFilteredOut = filter !== 'ALL' && plot.status !== filter;
               const isSelected = activePlot?.id === plot.id;
-              const isReserved = plot.status === 'RESERVED';
+              const isSold = plot.status === 'SOLD';
 
               return (
                 <div
                   key={plot.id}
+                  role="button"
+                  tabIndex={isFilteredOut ? -1 : 0}
+                  aria-label={`Plot #${plot.number}, ${plot.type}, Status ${plot.status}`}
                   onClick={() => setSelectedPlot(plot)}
-                  className={`cinema-seat-tile ${isReserved ? 'reserved' : 'available'} ${isSelected ? 'selected' : ''}`}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedPlot(plot);
+                    }
+                  }}
+                  className={`cinema-seat-tile ${isSold ? 'reserved' : 'available'} ${isSelected ? 'selected' : ''}`}
                   style={{
-                    opacity: isFilteredOut ? 0.2 : 1,
+                    opacity: isFilteredOut ? 0.18 : isSold ? 0.6 : 1,
                     pointerEvents: isFilteredOut ? 'none' : 'auto',
+                    background: isSold ? '#E8E3DC' : isSelected ? 'var(--ink-dark)' : '#FFFFFF'
                   }}
                 >
                   <span>{plot.number}</span>
-                  {isReserved && !isSelected && (
-                    <Lock size={9} style={{ position: 'absolute', top: '3px', right: '3px', opacity: 0.7 }} />
+                  {isSold && !isSelected && (
+                    <Lock size={9} style={{ position: 'absolute', top: '3px', right: '3px', opacity: 0.6 }} />
                   )}
                 </div>
               );
             })}
           </div>
 
-          {/* Cinema Mobile Seat Legend */}
+          {/* Mobile Legend */}
           <div
             style={{
               display: 'flex',
-              justify: 'center',
+              justifyContent: 'center',
               alignItems: 'center',
               gap: '1rem',
               padding: '0.65rem 0',
@@ -462,11 +526,11 @@ export default function PlotChooser({ onOpenBooking }) {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
               <div style={{ width: '12px', height: '12px', background: '#FFFFFF', border: '1px solid rgba(27,26,23,0.3)', borderRadius: '3px' }} />
-              <span>Available</span>
+              <span style={{ color: '#2e7d32', fontWeight: 700 }}>Available ({counts.available})</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <div style={{ width: '12px', height: '12px', background: 'rgba(168, 92, 60, 0.2)', border: '1px dashed rgba(168, 92, 60, 0.6)', borderRadius: '3px' }} />
-              <span>Reserved</span>
+              <div style={{ width: '12px', height: '12px', background: '#E8E3DC', border: '1px solid #B8ADA2', borderRadius: '3px' }} />
+              <span>Sold ({counts.sold})</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
               <div style={{ width: '12px', height: '12px', background: 'var(--ink-dark)', border: '1px solid var(--gold-accent)', borderRadius: '3px' }} />
@@ -474,7 +538,7 @@ export default function PlotChooser({ onOpenBooking }) {
             </div>
           </div>
 
-          {/* Cinema Ticket Booking Mobile Selected Card */}
+          {/* Mobile Selected Card */}
           {activePlot && (
             <div
               style={{
@@ -490,7 +554,7 @@ export default function PlotChooser({ onOpenBooking }) {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.65rem' }}>
                 <div>
                   <span style={{ fontSize: '0.65rem', letterSpacing: '0.15em', color: 'var(--gold-accent)', fontWeight: 800, textTransform: 'uppercase' }}>
-                    TICKET CONFIRMATION
+                    PLOT CONFIRMATION
                   </span>
                   <h4 style={{ fontSize: '1.3rem', fontFamily: 'var(--font-serif)', color: '#FAF8F4', margin: '0.1rem 0 0' }}>
                     Plot Unit #{activePlot.number}
@@ -504,9 +568,9 @@ export default function PlotChooser({ onOpenBooking }) {
                     letterSpacing: '0.08em',
                     padding: '0.3rem 0.65rem',
                     borderRadius: 'var(--radius-full)',
-                    background: activePlot.status === 'AVAILABLE' ? 'rgba(201, 160, 99, 0.25)' : 'rgba(168, 92, 60, 0.3)',
-                    color: activePlot.status === 'AVAILABLE' ? 'var(--gold-accent)' : '#E09878',
-                    border: activePlot.status === 'AVAILABLE' ? '1px solid var(--gold-accent)' : '1px solid rgba(168, 92, 60, 0.6)',
+                    background: activePlot.status === 'AVAILABLE' ? 'rgba(46, 125, 50, 0.25)' : 'rgba(130, 120, 110, 0.3)',
+                    color: activePlot.status === 'AVAILABLE' ? '#4ade80' : '#d4cec3',
+                    border: activePlot.status === 'AVAILABLE' ? '1px solid #4ade80' : '1px solid #9ca3af',
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '0.3rem'
@@ -521,54 +585,42 @@ export default function PlotChooser({ onOpenBooking }) {
                 {activePlot.type}
               </div>
 
-              {/* Ticket Specs Row */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', background: 'rgba(255, 255, 255, 0.06)', padding: '0.65rem', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', textAlign: 'center' }}>
+              {/* Specs Row */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', background: 'rgba(255, 255, 255, 0.06)', padding: '0.65rem', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', textAlign: 'center' }}>
                 <div>
-                  <span style={{ fontSize: '0.62rem', color: 'var(--text-muted-dark)', display: 'block' }}>Carpet Area</span>
-                  <strong style={{ fontSize: '0.8rem', color: '#FAF8F4' }}>{activePlot.carpetArea}</strong>
+                  <span style={{ fontSize: '0.62rem', color: 'var(--text-muted-dark)', display: 'block' }}>Plot Area</span>
+                  <strong style={{ fontSize: '0.85rem', color: '#FAF8F4' }}>{activePlot.areaSqft.toLocaleString()} Sq.Ft.</strong>
+                  {activePlot.cent && <span style={{ fontSize: '0.72rem', color: 'var(--gold-accent)', display: 'block' }}>({activePlot.cent} Cent)</span>}
                 </div>
                 <div>
-                  <span style={{ fontSize: '0.62rem', color: 'var(--text-muted-dark)', display: 'block' }}>Floor Level</span>
-                  <strong style={{ fontSize: '0.8rem', color: '#FAF8F4' }}>{activePlot.floor}</strong>
-                </div>
-                <div>
-                  <span style={{ fontSize: '0.62rem', color: 'var(--text-muted-dark)', display: 'block' }}>Orientation</span>
-                  <strong style={{ fontSize: '0.78rem', color: 'var(--gold-accent)' }}>{activePlot.facing.split(' ')[0]}</strong>
+                  <span style={{ fontSize: '0.62rem', color: 'var(--text-muted-dark)', display: 'block' }}>Plot Facing</span>
+                  <strong style={{ fontSize: '0.85rem', color: 'var(--gold-accent)' }}>{activePlot.facing}</strong>
                 </div>
               </div>
 
-              {/* Price & CTA */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
-                  <div>
-                    <span style={{ fontSize: '0.62rem', color: 'var(--text-muted-dark)', display: 'block' }}>Price Valuation</span>
-                    <strong style={{ fontSize: '1.2rem', fontFamily: 'var(--font-serif)', color: 'var(--gold-accent)' }}>
-                      {activePlot.price}
-                    </strong>
-                  </div>
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <button
+                  onClick={handleEnquirePlot}
+                  className="btn-architectural btn-clay"
+                  style={{ width: '100%', padding: '0.75rem', fontSize: '0.82rem', justifyContent: 'center' }}
+                >
+                  <span>{activePlot.status === 'AVAILABLE' ? 'Enquire Us' : 'Inquire Waiting List'}</span> <ArrowRight size={14} />
+                </button>
 
-                  <button
-                    onClick={onOpenBooking}
-                    className="btn-architectural btn-clay"
-                    style={{ padding: '0.65rem 1.1rem', fontSize: '0.78rem', gap: '0.4rem', whiteSpace: 'nowrap' }}
-                  >
-                    {activePlot.status === 'AVAILABLE' ? 'Reserve Unit' : 'Inquire'} <ArrowRight size={14} />
-                  </button>
-                </div>
-
-                <a
-                  href="#plot-360-feature"
+                <button
+                  onClick={handleExplore360}
                   className="btn-architectural btn-gold-outline"
-                  style={{ width: '100%', fontSize: '0.78rem', padding: '0.6rem', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  style={{ width: '100%', fontSize: '0.78rem', padding: '0.6rem', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', cursor: 'pointer' }}
                 >
                   <RotateCcw size={14} /> Explore 360° View
-                </a>
+                </button>
               </div>
             </div>
           )}
         </TiltCard>
 
-        {/* 360° INTERACTIVE VIRTUAL VIEW FEATURE (DYNAMICALLY SYNCED TO SELECTED PLOT) */}
+        {/* 360° INTERACTIVE VIRTUAL VIEW FEATURE */}
         <Plot360Viewer selectedPlot={activePlot} />
 
       </div>
